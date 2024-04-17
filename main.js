@@ -4,7 +4,11 @@ var fs = require('fs');
 var template = require('./lib/template.js');
 var path = require('path');
 var sanitizeHtml = require('sanitize-html');
-var qs = require('querystring');
+var bodyParser = require('body-parser')
+const compression = require('compression');
+
+app.use(bodyParser.urlencoded({extended: false}));
+app.use(compression());
 
 app.get('/', (req, res) => {
     fs.readdir('./data', function (error, filelist) {
@@ -44,8 +48,8 @@ app.get('/page/:pageId', (req, res) => {
     });
 });
 
-app.get('/create', (req, res ) => {
-    fs.readdir('./data', function(error, filelist){
+app.get('/create', (req, res) => {
+    fs.readdir('./data', function (error, filelist) {
         var title = 'WEB - create';
         var list = template.list(filelist);
         var html = template.HTML(title, list, `
@@ -64,28 +68,22 @@ app.get('/create', (req, res ) => {
 });
 
 app.post('/create_process', (req, res) => {
-    var body = '';
-    req.on('data', function (data) {
-        body = body + data;
-    });
-    req.on('end', function () {
-        var post = qs.parse(body);
-        var title = post.title;
-        var description = post.description;
-        fs.writeFile(`data/${title}`, description, 'utf8', function (err) {
-            res.redirect(`/page/${title}`);
-        });
+    var post = req.body;
+    var title = post.title;
+    var description = post.description;
+    fs.writeFile(`data/${title}`, description, 'utf8', function (err) {
+        res.redirect(`/page/${title}`);
     });
 });
 
 app.get('/update/:pageId', (req, res) => {
-    fs.readdir('./data', function(error, filelist){
-            var filteredId = path.parse(req.params.pageId).base;
-            fs.readFile(`data/${filteredId}`, 'utf8', function(err, description){
-                var title = req.params.pageId;
-                var list = template.list(filelist);
-                var html = template.HTML(title, list,
-                    `
+    fs.readdir('./data', function (error, filelist) {
+        var filteredId = path.parse(req.params.pageId).base;
+        fs.readFile(`data/${filteredId}`, 'utf8', function (err, description) {
+            var title = req.params.pageId;
+            var list = template.list(filelist);
+            var html = template.HTML(title, list,
+                `
             <form action="/update_process" method="post">
               <input type="hidden" name="id" value="${title}">
               <p><input type="text" name="title" placeholder="title" value="${title}"></p>
@@ -97,44 +95,32 @@ app.get('/update/:pageId', (req, res) => {
               </p>
             </form>
             `,
-                    `<a href="/create">create</a> <a href="/update?id=${title}">update</a>`
-                );
-                res.send(html);
-            });
+                `<a href="/create">create</a> <a href="/update?id=${title}">update</a>`
+            );
+            res.send(html);
         });
+    });
 });
 
 app.post('/update_process', (req, res) => {
-    var body = '';
-    req.on('data', function (data) {
-        body = body + data;
-    });
-    req.on('end', function () {
-        var post = qs.parse(body);
-        var id = post.id;
-        var title = post.title;
-        var description = post.description;
-        fs.rename(`data/${id}`, `data/${title}`, function (error) {
-            fs.writeFile(`data/${title}`, description, 'utf8', function (err) {
-                res.redirect(`/page/${title}`);
-            });
+    var post = req.body;
+    var id = post.id;
+    var title = post.title;
+    var description = post.description;
+    fs.rename(`data/${id}`, `data/${title}`, function (error) {
+        fs.writeFile(`data/${title}`, description, 'utf8', function (err) {
+            res.redirect(`/page/${title}`);
         });
     });
 });
 
 app.post('/delete_process', (req, res) => {
-    var body = '';
-    req.on('data', function (data) {
-        body = body + data;
-    });
-    req.on('end', function () {
-        var post = qs.parse(body);
+    var post = req.body;
         var id = post.id;
         var filteredId = path.parse(id).base;
         fs.unlink(`data/${filteredId}`, function (error) {
-            res.redirect(`/`);
+            res.redirect('/');
         });
-    });
 });
 
 app.listen(3000, () => console.log('Example app listening on port 3000'));
